@@ -59,8 +59,9 @@ the usual best practice guides to secure any accounts that you set up_
 
 1. Install Terraform and
    [set up your AWS credentials](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-2. Build and zip the lambda functions (see below) or grab the zip files (@todo, add link
-   to releases) and put them in a sensible local directory.
+2. Build and zip the lambda functions (see below) or
+   [grab the zip files](https://github.com/sjauld/roy-spf/releases/tag/v0.1.0)
+   and put them in a sensible local directory.
 2. Create a terraform file that calls the module in this repo (see
    [the example in this repo](./infra/example/main.tf)). This is where you'll
    add your Postmark DKIM hostname and value, the domain name you'll be using,
