@@ -97,8 +97,9 @@ All that's left now is to launch your attack!
      }],
      "postmark_template_alias": "roy-test",
      "from": "Fake Address <fake@example-security.com>"
-  }
-  ```
+   }
+   ```
+
 4. Click _Test_
 
 ### Attack (CLI version)!
