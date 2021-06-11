@@ -24,6 +24,7 @@ There are three main steps in carrying out the phishing simulation:
    include target links that are routed via Postmark). We collect the clicks for
    you and let you (and the victim) know that they have been snagged.
 
+![Infrastructure design for Roy's Serverless Phishing Framework](./infra.jpg)
 
 ## Instructions
 

@@ -1,0 +1,11 @@
+# tf stuff
+.terraform
+.terraform.tfstate*
+terraform.tfstate*
+
+# binaries
+*.zip
+sender
+!sender/
+tracker
+!tracker/
