@@ -42,13 +42,14 @@ func tracker(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		return helpers.ResponsePermanentRedirect(redirectURLError.String())
 	}
 
-	log.Printf("[INFO] captured a click from %v", email)
+	ua := request.Headers["User-Agent"]
+	log.Printf("[INFO] captured a click from %v (User-Agent: %v)", email, ua)
 
 	_, err = mailerClient.SendEmail(postmark.Email{
 		From:     mailFrom,
 		To:       mailTo,
 		Subject:  fmt.Sprintf("[RoySPF] %v is a victim!", email),
-		TextBody: fmt.Sprintf("You caught %v! Time for compulsory phishing re-education!", email),
+		TextBody: fmt.Sprintf("You caught %v!\nUser-Agent: %v\nTime for compulsory phishing re-education!", email, ua),
 	})
 
 	if err != nil {
