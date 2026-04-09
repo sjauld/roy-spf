@@ -1,5 +1,5 @@
 module "roy" {
-  source = "git@github.com:sjauld/roy-spf.git//infra?ref=v0.1.0"
+  source = "git@github.com:sjauld/roy-spf.git//infra?ref=main"
 
   secrets_kms_key_alias = "parameter_store_key"
 

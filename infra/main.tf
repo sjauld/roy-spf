@@ -64,13 +64,14 @@ resource "aws_lambda_function" "sender" {
 
   filename = var.path_to_sender_zip
 
-  runtime = "go1.x"
-  handler = "sender"
+  runtime = "provided.al2023"
+  handler = "bootstrap"
+
+  timeout = 600
 
   environment {
     variables = {
-      CHAMBER_KMS_KEY_ALIAS = var.secrets_kms_key_alias
-      TRACKER_BASE_URL      = "https://${var.phishing_domain}"
+      TRACKER_BASE_URL = "https://${var.phishing_domain}"
     }
   }
 
@@ -110,31 +111,23 @@ data "aws_kms_alias" "secrets" {
 
 data "aws_iam_policy_document" "sender" {
   statement {
-    sid       = "KMSDecrypt"
-    actions   = ["kms:Decrypt"]
-    resources = [data.aws_kms_alias.secrets.target_key_arn]
-  }
-
-  statement {
-    sid = "SSMDescribeParameters"
-
-    actions = [
-      "ssm:DescribeParameters",
+    sid     = "KMSDecrypt"
+    actions = ["kms:Decrypt"]
+    resources = [
+      data.aws_kms_alias.secrets.target_key_arn,
+      data.aws_kms_key.lambda_default.arn,
     ]
-
-    resources = ["*"]
   }
 
   statement {
     sid = "SSMGetParameters"
 
     actions = [
-      "ssm:GetParameters",
-      "ssm:GetParametersByPath",
+      "ssm:GetParameter",
     ]
 
     resources = [
-      "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/roy-spf-sender/*",
+      "arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter/roy-spf-sender/*",
     ]
   }
 
@@ -147,7 +140,9 @@ data "aws_iam_policy_document" "sender" {
       "logs:PutLogEvents",
     ]
 
-    resources = ["*"]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/RoySPFSender:*",
+    ]
   }
 }
 
@@ -219,7 +214,6 @@ resource "aws_route53_record" "tracker" {
 
 resource "aws_api_gateway_deployment" "tracker" {
   description = "RoySPF tracker deployment"
-  stage_name  = "tracker"
 
   rest_api_id = aws_api_gateway_rest_api.tracker.id
 
@@ -233,9 +227,15 @@ resource "aws_api_gateway_deployment" "tracker" {
   ]
 }
 
+resource "aws_api_gateway_stage" "tracker" {
+  rest_api_id   = aws_api_gateway_rest_api.tracker.id
+  deployment_id = aws_api_gateway_deployment.tracker.id
+  stage_name    = "tracker"
+}
+
 resource "aws_api_gateway_base_path_mapping" "tracker" {
   api_id      = aws_api_gateway_rest_api.tracker.id
-  stage_name  = aws_api_gateway_deployment.tracker.stage_name
+  stage_name  = aws_api_gateway_stage.tracker.stage_name
   domain_name = aws_api_gateway_domain_name.tracker.domain_name
 }
 
@@ -251,16 +251,15 @@ resource "aws_lambda_function" "tracker" {
 
   filename = var.path_to_tracker_zip
 
-  runtime = "go1.x"
-  handler = "tracker"
+  runtime = "provided.al2023"
+  handler = "bootstrap"
 
   environment {
     variables = {
-      CHAMBER_KMS_KEY_ALIAS = var.secrets_kms_key_alias
-      MAIL_FROM             = "${var.tracker_mail_from}@${var.phishing_domain}"
-      MAIL_TO               = var.tracker_mail_to
-      REDIRECT_URL_ERROR    = var.tracker_redirect_url_error
-      REDIRECT_URL_MATCH    = var.tracker_redirect_url_match
+      MAIL_FROM          = "${var.tracker_mail_from}@${var.phishing_domain}"
+      MAIL_TO            = var.tracker_mail_to
+      REDIRECT_URL_ERROR = var.tracker_redirect_url_error
+      REDIRECT_URL_MATCH = var.tracker_redirect_url_match
     }
   }
 
@@ -273,8 +272,7 @@ resource "aws_lambda_permission" "gateway_invocation" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.tracker.function_name
   principal     = "apigateway.amazonaws.com"
-  # source_arn    = "${aws_api_gateway_rest_api.tracker.execution_arn}/*/GET*"
-  source_arn = "${aws_api_gateway_rest_api.tracker.execution_arn}/*"
+  source_arn    = "${aws_api_gateway_rest_api.tracker.execution_arn}/*/GET/*"
 }
 
 resource "aws_lambda_alias" "tracker" {
@@ -304,33 +302,29 @@ resource "aws_iam_policy" "tracker" {
   policy = data.aws_iam_policy_document.tracker.json
 }
 
+data "aws_kms_key" "lambda_default" {
+  key_id = "alias/aws/lambda"
+}
+
 data "aws_iam_policy_document" "tracker" {
   statement {
-    sid       = "KMSDecrypt"
-    actions   = ["kms:Decrypt"]
-    resources = [data.aws_kms_alias.secrets.target_key_arn]
-  }
-
-  statement {
-    sid = "SSMDescribeParameters"
-
-    actions = [
-      "ssm:DescribeParameters",
+    sid     = "KMSDecrypt"
+    actions = ["kms:Decrypt"]
+    resources = [
+      data.aws_kms_alias.secrets.target_key_arn,
+      data.aws_kms_key.lambda_default.arn,
     ]
-
-    resources = ["*"]
   }
 
   statement {
     sid = "SSMGetParameters"
 
     actions = [
-      "ssm:GetParameters",
-      "ssm:GetParametersByPath",
+      "ssm:GetParameter",
     ]
 
     resources = [
-      "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/roy-spf-tracker/*",
+      "arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter/roy-spf-tracker/*",
     ]
   }
 
@@ -343,7 +337,9 @@ data "aws_iam_policy_document" "tracker" {
       "logs:PutLogEvents",
     ]
 
-    resources = ["*"]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/RoySPFTracker:*",
+    ]
   }
 }
 
@@ -383,18 +379,21 @@ resource "aws_api_gateway_integration" "root" {
 }
 
 # Add the encryption/decryption secret
-resource "random_uuid" "secret" {}
+resource "random_password" "secret" {
+  length  = 32
+  special = false
+}
 
 resource "aws_ssm_parameter" "encryption_secret" {
   name   = "/roy-spf-sender/encryption-secret"
   type   = "SecureString"
   key_id = data.aws_kms_alias.secrets.target_key_arn
-  value  = resource.random_uuid.secret.id
+  value  = random_password.secret.result
 }
 
 resource "aws_ssm_parameter" "decryption_secret" {
   name   = "/roy-spf-tracker/decryption-secret"
   type   = "SecureString"
   key_id = data.aws_kms_alias.secrets.target_key_arn
-  value  = resource.random_uuid.secret.id
+  value  = random_password.secret.result
 }

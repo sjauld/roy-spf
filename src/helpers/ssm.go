@@ -1,20 +1,15 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
-	"os"
 
-	"github.com/segmentio/chamber/store"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
-const (
-	chamberExpectedRegionEnv = "CHAMBER_AWS_REGION"
-	chamberFallbackRegion    = "ap-southeast-2"
-
-	ssmRetries = 3
-)
-
-var secretStore store.Store
+var ssmClient *ssm.Client
 
 // MustReadSSMSecret gets your secret out of SSM, or dies trying.
 func MustReadSSMSecret(service, key string) string {
@@ -28,47 +23,22 @@ func MustReadSSMSecret(service, key string) string {
 
 // ReadSSMSecret attempts to get your secret out of SSM
 func ReadSSMSecret(service, key string) (string, error) {
-	setSecretStore()
-
-	secretID := store.SecretId{
-		Service: service,
-		Key:     key,
+	if ssmClient == nil {
+		cfg, err := config.LoadDefaultConfig(context.Background())
+		if err != nil {
+			return "", fmt.Errorf("loading AWS config: %w", err)
+		}
+		ssmClient = ssm.NewFromConfig(cfg)
 	}
-	// -1 gives the latest version of a secret
-	val, err := secretStore.Read(secretID, -1)
+
+	name := fmt.Sprintf("/%s/%s", service, key)
+	out, err := ssmClient.GetParameter(context.Background(), &ssm.GetParameterInput{
+		Name:           aws.String(name),
+		WithDecryption: aws.Bool(true),
+	})
 	if err != nil {
 		return "", err
 	}
-	return *val.Value, nil
-}
 
-func setSecretStore() {
-	if secretStore != nil {
-		return
-	}
-
-	trySetChamberAWSRegion()
-
-	secretStore = store.NewSSMStore(ssmRetries)
-}
-
-func trySetChamberAWSRegion() {
-	if _, ok := os.LookupEnv(chamberExpectedRegionEnv); ok {
-		return
-	}
-
-	// Try copying from the environment
-	if r, ok := os.LookupEnv("AWS_DEFAULT_REGION"); ok {
-		os.Setenv(chamberExpectedRegionEnv, r)
-		return
-	}
-	if r, ok := os.LookupEnv("AWS_REGION"); ok {
-		os.Setenv(chamberExpectedRegionEnv, r)
-		return
-	}
-	if r, ok := os.LookupEnv("CHAMBER_REGION"); ok {
-		os.Setenv(chamberExpectedRegionEnv, r)
-		return
-	}
-	os.Setenv(chamberExpectedRegionEnv, chamberFallbackRegion)
+	return aws.ToString(out.Parameter.Value), nil
 }
