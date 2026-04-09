@@ -9,3 +9,7 @@ sender
 !sender/
 tracker
 !tracker/
+
+# target lists
+*.csv
+!targets.example.csv

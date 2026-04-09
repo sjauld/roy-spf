@@ -5,10 +5,12 @@ variable "secrets_kms_key_alias" {
 
 variable "path_to_sender_zip" {
   description = "The location of a zip file containing the sender binary"
+  type        = string
 }
 
 variable "path_to_tracker_zip" {
-  description = "The location of a zip file containing the sender binary"
+  description = "The location of a zip file containing the tracker binary"
+  type        = string
 }
 
 variable "phishing_domain" {
@@ -37,6 +39,7 @@ variable "tracker_mail_from" {
 
 variable "tracker_mail_to" {
   description = "The address to send mail to (probably your address!)"
+  type        = string
 }
 
 variable "tracker_redirect_url_error" {

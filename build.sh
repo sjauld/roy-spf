@@ -1,11 +1,11 @@
 #!/bin/zsh
 
 echo "Building sender.zip"
-go build -v ./src/sender/.
-zip sender.zip sender
-rm sender
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bootstrap ./src/sender/.
+zip sender.zip bootstrap
+rm bootstrap
 
 echo "Building tracker.zip"
-go build -v ./src/tracker/.
-zip tracker.zip tracker
-rm tracker
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bootstrap ./src/tracker/.
+zip tracker.zip bootstrap
+rm bootstrap

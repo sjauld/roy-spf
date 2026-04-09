@@ -58,37 +58,73 @@ the usual best practice guides to secure any accounts that you set up_
 
 ### AWS Account Setup II (terraform)
 
-1. Install Terraform and
+1. Install Terraform >= 1.5 and
    [set up your AWS credentials](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-2. Build and zip the lambda functions (see below) or
-   [grab the zip files](https://github.com/sjauld/roy-spf/releases/tag/v0.1.0)
+2. Build the lambda functions (see [Building the lambdas](#building-the-lambdas))
+   or download the zip files from the [latest release](https://github.com/sjauld/roy-spf/releases/latest)
    and put them in a sensible local directory.
-2. Create a terraform file that calls the module in this repo (see
+3. Create a terraform file that calls the module in this repo (see
    [the example in this repo](./infra/example/main.tf)). This is where you'll
    add your Postmark DKIM hostname and value, the domain name you'll be using,
    and the path to the zip files.
-3. `terraform init && terraform apply`
+4. `terraform init && terraform apply`
 
 This will now build all the shiny resources you need.
 
 ### Postmark Account Setup II
 
-1. Navigate back to your Postamrk domain and click the verify button next to the
+1. Navigate back to your Postmark domain and click the verify button next to the
    DKIM and Return-Path records.
-2. Now navigate to you server and build a nice template that you want to use as
-   part of your phishing exercise. Make sure you add a link to {{tracker_url}} Update the template alias and note it down.
+2. Now navigate to your server and build a nice template that you want to use as
+   part of your phishing exercise. Make sure you add a link to `{{tracker_url}}`.
+   Update the template alias and note it down.
    It's worth reading about Postmark's template language which you may want to
    use to personalise your attack.
 
-### Attack (GUI version)!
+### Attack (script version)!
 
-All that's left now is to launch your attack!
+The easiest way to launch an attack against multiple targets is with `attack.sh`.
+
+First, create a targets CSV file. **Note: `.csv` files are excluded from git to
+prevent real target lists from being accidentally committed** (except for
+`targets.example.csv`). Use the provided example as a starting point:
+
+```sh
+cp targets.example.csv targets.csv
+```
+
+The format is `name,email` — one target per line, no header row:
+
+```
+Bob Smith,bob@example.com
+Jane Doe,jane@example.com
+```
+
+Then launch the attack:
+
+```sh
+./attack.sh \
+  --file targets.csv \
+  --template roy-test \
+  --from "Fake Address <fake@example-security.com>"
+```
+
+Options:
+
+| Flag | Required | Description |
+|---|---|---|
+| `--file` | yes | Path to your targets CSV |
+| `--template` | yes | Postmark template alias |
+| `--from` | yes | Sender address shown to targets |
+| `--function-name` | no | Lambda function name (default: `RoySPFSender`) |
+
+### Attack (GUI version)!
 
 1. Log in to AWS and navigate to the
    [sender lambda](https://ap-southeast-2.console.aws.amazon.com/lambda/home?region=ap-southeast-2#/functions/RoySPFSender?tab=code)
 2. Go to the test tab
 3. Paste in your payload
-   ```
+   ```json
    {
      "targets": [{
         "address": "My Target <address@example.com>",
@@ -100,7 +136,6 @@ All that's left now is to launch your attack!
      "from": "Fake Address <fake@example-security.com>"
    }
    ```
-
 4. Click _Test_
 
 ### Attack (CLI version)!
@@ -125,5 +160,18 @@ aws lambda invoke \
 
 ## Building the lambdas
 
-If you need to make some changes to the lambdas, just checkout this repo, make
-your changes and then run `build.sh`.
+If you need to make some changes to the lambdas, check out this repo, make
+your changes and then run:
+
+```sh
+./build.sh
+```
+
+This produces `sender.zip` and `tracker.zip`, ready to be referenced in your
+Terraform config.
+
+## Releases
+
+Tagged releases are built automatically via GitHub Actions. Each push to `main`
+is tagged using conventional commits (defaulting to a patch bump), and
+`sender.zip` and `tracker.zip` are attached as release assets.
